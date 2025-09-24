@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>IDFC POS Calculator with Plan Savings Selection</title>
+<style>
+  body {font-family: Arial,sans-serif; max-width: 700px; margin: auto; padding: 20px;}
+  h2 {color: #004aad;}
+  label {display:block; margin-top: 1rem;}
+  input[type=text], input[type=number], select {width: 100%; padding: 8px; margin-top: 0.3rem; font-size: 1rem;}
+  .radioGroup {display: flex; gap: 1rem; margin-top: 0.3rem;}
+  .result, .altPitch {margin-top: 15px; padding: 20px; border-radius: 6px;}
+  .result {background: #e3f0ff;}
+  .altPitch {background: #fffbe6; border-left: 5px solid #f0ad4e; font-style: italic;}
+  table {width: 100%; border-collapse: collapse; margin-top: 20px;}
+  th, td {border: 1px solid #ccc; padding: 8px; text-align: right;}
+  th {background: #0072c6; color: white;}
+  td.left {text-align: left;}
+  .highlighted {background-color: #d4edda;}
+  #volumeText {font-style: italic; color: #666;}
+</style>
+</head>
+<body>
+
+<h2>IDFC POS Calculator with Plan Savings Selection</h2>
+
+<label for="volume">Transaction Volume (₹)</label>
+<input type="text" id="volume" placeholder="Enter amount" value="2,00,000" />
+<div id="volumeText"></div>
+
+<label>Period</label>
+<div class="radioGroup">
+  <label><input type="radio" name="period" value="monthly" checked> Monthly</label>
+  <label><input type="radio" name="period" value="daily"> Daily</label>
+</div>
+
+<label for="mdr">Current Total MDR (%)</label>
+<input type="number" id="mdr" min="0" max="100" step="0.01" value="1.80" />
+
+<label for="rental">Current Monthly Rental (₹)</label>
+<input type="number" id="rental" min="0" max="10000" step="1" value="500" />
+
+<h3>Select IDFC Plan Savings to View:</h3>
+<div class="radioGroup">
+  <label><input type="radio" name="planSelection" value="plat" checked> Platinum Plan Savings</label>
+  <label><input type="radio" name="planSelection" value="gold"> Gold Plan Savings</label>
+</div>
+
+<div id="results" class="result" style="display:none;">
+  <div id="monthlyVolume"></div>
+  <div id="currentCost"></div>
+  <div id="platCost"></div>
+  <div id="goldCost"></div>
+  <div id="bestOption" style="font-weight:bold; margin-top:8px;"></div>
+  <div id="platSavings"></div>
+  <div id="platAnnualSavings"></div>
+  <div id="goldSavings"></div>
+  <div id="goldAnnualSavings"></div>
+</div>
+
+<div id="altPitch" class="altPitch" style="display:none;"></div>
+
+<h3>Savings per Additional ₹1 Lakh</h3>
+<table id="savingsTable" aria-label="Savings Table">
+  <thead>
+    <tr>
+      <th class="left">Monthly Volume (₹)</th>
+      <th>Current Cost (₹)</th>
+      <th>IDFC Plan Cost (₹)</th>
+      <th>Savings (₹)</th>
+      <th>Annual Savings (₹)</th>
+    </tr>
+  </thead>
+  <tbody></tbody>
+</table>
+
+<script>
+function numberToWords(num) {
+  if (!num || isNaN(num)) return '';
+  num = Number(num);
+  if (num === 0) return 'zero';
+  if (num > 999999999) return 'overflow';
+
+  const units = ['', 'one ', 'two ', 'three ', 'four ', 'five ', 'six ', 'seven ', 'eight ', 'nine '];
+  const teens = ['ten ', 'eleven ', 'twelve ', 'thirteen ', 'fourteen ', 'fifteen ',
+                 'sixteen ', 'seventeen ', 'eighteen ', 'nineteen '];
+  const tens = ['', '', 'twenty ', 'thirty ', 'forty ', 'fifty ',
+                'sixty ', 'seventy ', 'eighty ', 'ninety '];
+
+  function twoDigits(n) {
+    if (n < 10) return units[n];
+    else if (n < 20) return teens[n - 10];
+    else return tens[Math.floor(n / 10)] + units[n % 10];
+  }
+
+  let str = '';
+  let numStr = ('000000000' + num).slice(-9);
+  let crore = parseInt(numStr.substr(0, 2));
+  let lakh = parseInt(numStr.substr(2, 2));
+  let thousand = parseInt(numStr.substr(4, 2));
+  let hundred = parseInt(numStr.substr(6, 1));
+  let rest = parseInt(numStr.substr(7, 2));
+
+  if (crore) str += twoDigits(crore) + 'crore ';
+  if (lakh) str += twoDigits(lakh) + 'lakh ';
+  if (thousand) str += twoDigits(thousand) + 'thousand ';
+  if (hundred) str += units[hundred] + 'hundred ';
+  if (rest) str += (str.length ? 'and ' : '') + twoDigits(rest);
+
+  return str.trim();
+}
+
+const volumeInput = document.getElementById('volume');
+const volumeText = document.getElementById('volumeText');
+const periodInputs = document.getElementsByName('period');
+const mdrInput = document.getElementById('mdr');
+const rentalInput = document.getElementById('rental');
+const planSelectionInputs = document.getElementsByName('planSelection');
+const resultsDiv = document.getElementById('results');
+const monthlyVolumeEl = document.getElementById('monthlyVolume');
+const currentCostEl = document.getElementById('currentCost');
+const platCostEl = document.getElementById('platCost');
+const goldCostEl = document.getElementById('goldCost');
+const bestOptionEl = document.getElementById('bestOption');
+const platSavingsEl = document.getElementById('platSavings');
+const platAnnualSavingsEl = document.getElementById('platAnnualSavings');
+const goldSavingsEl = document.getElementById('goldSavings');
+const goldAnnualSavingsEl = document.getElementById('goldAnnualSavings');
+const altPitchDiv = document.getElementById('altPitch');
+const savingsTableBody = document.querySelector('#savingsTable tbody');
+
+function formatNumber(num) {
+  return Number(num).toLocaleString('en-IN');
+}
+
+function sanitizeNumber(str) {
+  return str.replace(/[^0-9.]/g, '');
+}
+
+function calculate(volume, rate, rental, period) {
+  let actualVolume = period === 'daily' ? volume * 30 : volume;
+  let currentCost = actualVolume * (rate / 100) + rental;
+
+  let platRent = 499;
+  let goldRent = actualVolume >= 200000 ? 124.5 : 249;
+
+  let platCost = actualVolume * 0.01 + platRent;
+  let goldCost = actualVolume * 0.015 + goldRent;
+
+  let platSave = currentCost - platCost;
+  let goldSave = currentCost - goldCost;
+
+  let bestSave = Math.max(platSave, goldSave);
+  let bestPlan = bestSave === platSave ? 'Platinum' : 'Gold';
+
+  return {
+    volume: actualVolume,
+    currentCost,
+    platCost,
+    goldCost,
+    platSave,
+    goldSave,
+    bestSave,
+    bestPlan,
+    annualSavings: bestSave * 12
+  };
+}
+
+function update() {
+  let val = sanitizeNumber(volumeInput.value);
+  let numVal = parseFloat(val);
+
+  if (!numVal || numVal <= 0) {
+    resultsDiv.style.display = 'none';
+    altPitchDiv.style.display = 'none';
+    return;
+  }
+
+  volumeInput.value = formatNumber(numVal);
+  volumeText.textContent = numberToWords(numVal) + ' rupees';
+
+  let rate = parseFloat(sanitizeNumber(mdrInput.value));
+  if (isNaN(rate) || rate < 0) rate = 0;
+  if (rate > 100) rate = 100;
+  mdrInput.value = rate.toFixed(2);
+
+  let rental = parseFloat(sanitizeNumber(rentalInput.value));
+  if (isNaN(rental) || rental < 0) rental = 0;
+  rentalInput.value = rental;
+
+  let period = Array.from(periodInputs).find(r => r.checked).value;
+
+  let res = calculate(numVal, rate, rental, period);
+
+  resultsDiv.style.display = 'block';
+  monthlyVolumeEl.textContent = `Monthly Volume (₹): ${formatNumber(res.volume)}`;
+  currentCostEl.textContent = `Current Cost (₹): ${formatNumber(res.currentCost)}`;
+  platCostEl.textContent = `IDFC Platinum Cost (₹): ${formatNumber(res.platCost)}`;
+  goldCostEl.textContent = `IDFC Gold Cost (₹): ${formatNumber(res.goldCost)}`;
+
+  if(res.platSave <= 0 && res.goldSave <= 0){
+    let savingIndex = -1;
+    for(let i=1; i<=5; i++){
+      let testVol = numVal + i*100000;
+      let testRes = calculate(testVol, rate, rental, 'monthly');
+      if(testRes.bestSave > 0){
+        savingIndex = i;
+        break;
+      }
+    }
+    if(savingIndex !== -1){
+      let cutoffVol = numVal + savingIndex*100000;
+      bestOptionEl.textContent = `No savings at current volume, but savings start from ₹${formatNumber(cutoffVol)} volume.`;
+      altPitchDiv.innerHTML = `You can also enjoy benefits like <strong>free soundbox</strong>, 365-day settlement, dedicated support, and banking integration.`;
+      altPitchDiv.style.display = 'block';
+    } else {
+      bestOptionEl.textContent = "No direct savings with current plans.";
+      altPitchDiv.innerHTML = `Enjoy benefits like <strong>free soundbox</strong>, 365-day settlement, dedicated support, and banking integration.`;
+      altPitchDiv.style.display = 'block';
+    }
+    platSavingsEl.style.display = 'none';
+    platAnnualSavingsEl.style.display = 'none';
+    goldSavingsEl.style.display = 'none';
+    goldAnnualSavingsEl.style.display = 'none';
+  } else {
+    bestOptionEl.textContent = `Best Option: IDFC ${res.bestPlan} Plan`;
+    altPitchDiv.style.display = 'none';
+
+    platSavingsEl.style.display = 'block';
+    platAnnualSavingsEl.style.display = 'block';
+    goldSavingsEl.style.display = 'block';
+    goldAnnualSavingsEl.style.display = 'block';
+
+    platSavingsEl.textContent = `Platinum Savings (Monthly): ₹${formatNumber(res.platSave > 0 ? Math.min(res.platSave, 500000) : 0)}`;
+    platAnnualSavingsEl.textContent = `Platinum Savings (Annual): ₹${formatNumber(res.platSave > 0 ? Math.min(res.platSave * 12, 6000000) : 0)}`;
+    goldSavingsEl.textContent = `Gold Savings (Monthly): ₹${formatNumber(res.goldSave > 0 ? Math.min(res.goldSave, 500000) : 0)}`;
+    goldAnnualSavingsEl.textContent = `Gold Savings (Annual): ₹${formatNumber(res.goldSave > 0 ? Math.min(res.goldSave * 12, 6000000) : 0)}`;
+  }
+
+  // Plan selection by user, default best plan
+  let selectedPlan = Array.from(planSelectionInputs).find(r => r.checked)?.value || res.bestPlan.toLowerCase();
+  // Highlighted start index for savings in table depends on plan selected
+  let highlightStart = -1;
+
+  // Build savings table rows for plan selected
+  let tbodyHTML = '';
+  for(let i=0; i<=5; i++){
+    let vol = res.volume + i*100000;
+    let calcRes = calculate(vol, rate, rental, 'monthly');
+    let planCost, planSave;
+
+    if (selectedPlan === 'gold') {
+      planCost = calcRes.goldCost;
+      planSave = calcRes.currentCost - calcRes.goldCost;
+    } else {
+      planCost = calcRes.platCost;
+      planSave = calcRes.currentCost - calcRes.platCost;
+    }
+
+    if(planSave > 0 && highlightStart === -1) highlightStart = i;
+
+    let saving = Math.max(planSave, 0);
+    if(saving > 500000) saving = 500000;
+
+    let highlightClass = (highlightStart !== -1 && i >= highlightStart) ? 'highlighted' : '';
+
+    tbodyHTML += `<tr class="${highlightClass}">
+      <td class="left">₹${formatNumber(vol)}</td>
+      <td>₹${formatNumber(calcRes.currentCost)}</td>
+      <td>₹${formatNumber(planCost)}</td>
+      <td>₹${formatNumber(saving)}</td>
+      <td>₹${formatNumber(saving * 12)}</td>
+    </tr>`;
+  }
+  savingsTableBody.innerHTML = tbodyHTML;
+}
+
+volumeInput.addEventListener('input', () => {
+  let val = volumeInput.value.replace(/[^0-9.]/g, '');
+  volumeInput.value = val ? Number(val).toLocaleString('en-IN') : '';
+  volumeText.textContent = volumeInput.value ? numberToWords(val) + ' rupees' : '';
+  update();
+});
+volumeInput.addEventListener('blur', () => {
+  let val = volumeInput.value.replace(/[^0-9.]/g, '');
+  if(val) volumeInput.value = Number(val).toLocaleString('en-IN');
+  volumeText.textContent = volumeInput.value ? numberToWords(val) + ' rupees' : '';
+});
+
+mdrInput.addEventListener('blur', () => {
+  let val = mdrInput.value.replace(/[^0-9.]/g, '');
+  let num = parseFloat(val);
+  if(isNaN(num) || num < 0) num = 0;
+  if(num > 100) num = 100;
+  mdrInput.value = num.toFixed(2);
+  update();
+});
+
+rentalInput.addEventListener('input', update);
+Array.from(periodInputs).forEach(radio => radio.addEventListener('change', update));
+Array.from(planSelectionInputs).forEach(radio => radio.addEventListener('change', update));
+
+window.onload = () => {
+  const val = volumeInput.value.replace(/[^0-9]/g, '');
+  volumeText.textContent = numberToWords(val) + ' rupees';
+  update();
+};
+</script>
+
+</body>
+</html>
