@@ -143,7 +143,7 @@ function calculate(volume, rate, rental, period) {
   let currentCost = actualVolume * (rate / 100) + rental;
 
   let platRent = 499;
-  let goldRent = actualVolume >= 200000 ? 124.5 : 249;
+  let goldRent = actualVolume >= 200000 ? 250 : 500;
 
   let platCost = actualVolume * 0.01 + platRent;
   let goldCost = actualVolume * 0.015 + goldRent;
@@ -310,3 +310,4 @@ window.onload = () => {
 
 </body>
 </html>
+
