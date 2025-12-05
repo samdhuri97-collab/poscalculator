@@ -67,7 +67,7 @@
     <tr>
       <th class="left">Monthly Volume (₹)</th>
       <th>Current Cost (₹)</th>
-      <th>IDFC Plan Cost (₹)</th>
+      <th>Selected Plan Cost (₹)</th>
       <th>Savings (₹)</th>
       <th>Annual Savings (₹)</th>
     </tr>
@@ -196,8 +196,8 @@ function update() {
   resultsDiv.style.display = 'block';
   monthlyVolumeEl.textContent = `Monthly Volume (₹): ${formatNumber(res.volume)}`;
   currentCostEl.textContent = `Current Cost (₹): ${formatNumber(res.currentCost)}`;
-  platCostEl.textContent = `IDFC Platinum Cost (₹): ${formatNumber(res.platCost)}`;
-  goldCostEl.textContent = `IDFC Gold Cost (₹): ${formatNumber(res.goldCost)}`;
+  platCostEl.textContent = `Platinum Cost (₹): ${formatNumber(res.platCost)}`;
+  goldCostEl.textContent = `Gold Cost (₹): ${formatNumber(res.goldCost)}`;
 
   if(res.platSave <= 0 && res.goldSave <= 0){
     let savingIndex = -1;
@@ -224,7 +224,7 @@ function update() {
     goldSavingsEl.style.display = 'none';
     goldAnnualSavingsEl.style.display = 'none';
   } else {
-    bestOptionEl.textContent = `Best Option: IDFC ${res.bestPlan} Plan`;
+    bestOptionEl.textContent = `Best Option: ${res.bestPlan} Plan`;
     altPitchDiv.style.display = 'none';
 
     platSavingsEl.style.display = 'block';
@@ -310,5 +310,6 @@ window.onload = () => {
 
 </body>
 </html>
+
 
 
