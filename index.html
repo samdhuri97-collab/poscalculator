@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>IDFC POS Calculator with Plan Savings Selection</title>
+<title>POS MDR Savings Selection</title>
 <style>
   body {font-family: Arial,sans-serif; max-width: 700px; margin: auto; padding: 20px;}
   h2 {color: #004aad;}
@@ -23,7 +23,7 @@
 </head>
 <body>
 
-<h2>IDFC POS Calculator with Plan Savings Selection</h2>
+<h2>POS Calculator with Plan Savings Selection</h2>
 
 <label for="volume">Transaction Volume (₹)</label>
 <input type="text" id="volume" placeholder="Enter amount" value="2,00,000" />
@@ -41,7 +41,7 @@
 <label for="rental">Current Monthly Rental (₹)</label>
 <input type="number" id="rental" min="0" max="10000" step="1" value="500" />
 
-<h3>Select IDFC Plan Savings to View:</h3>
+<h3>Select Plan Savings to View:</h3>
 <div class="radioGroup">
   <label><input type="radio" name="planSelection" value="plat" checked> Platinum Plan Savings</label>
   <label><input type="radio" name="planSelection" value="gold"> Gold Plan Savings</label>
@@ -310,4 +310,5 @@ window.onload = () => {
 
 </body>
 </html>
+
 
